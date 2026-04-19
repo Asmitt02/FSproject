@@ -19,12 +19,27 @@ export default function StudentSignup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const API = import.meta.env.VITE_API_URL || "";
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    if (name && email && password) {
-      // Simulate account creation and redirect to dashboard
-      navigate("/student-dashboard");
+    if (!name || !email || !password) return;
+    try {
+      const res = await fetch(`${API}/api/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.token) localStorage.setItem("token", data.token);
+        navigate("/student-dashboard");
+      } else {
+        alert(data.error || "Signup failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Signup failed");
     }
   };
 

@@ -19,12 +19,27 @@ export default function StudentLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const API = import.meta.env.VITE_API_URL || "";
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Simplified login routing for demonstration
-    if (email && password) {
-      navigate("/student-dashboard");
+    if (!email || !password) return;
+    try {
+      const res = await fetch(`${API}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.token) localStorage.setItem("token", data.token);
+        navigate("/student-dashboard");
+      } else {
+        alert(data.error || "Login failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Login failed");
     }
   };
 
