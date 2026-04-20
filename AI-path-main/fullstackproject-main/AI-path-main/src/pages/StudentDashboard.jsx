@@ -18,8 +18,15 @@ import {
   CheckCircle2,
   ChevronRight,
   LogOut,
+  Briefcase,
+  Code,
+  MapPin,
+  Calendar,
+  DollarSign,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +51,8 @@ export default function StudentDashboard() {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: User },
     { id: "courses", label: "My Courses", icon: Book },
+    { id: "internships", label: "Internships", icon: Briefcase },
+    { id: "hackathons", label: "Hackathons", icon: Code },
     { id: "certificates", label: "Certificates", icon: Award },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -356,6 +365,184 @@ export default function StudentDashboard() {
                       Resume
                     </Button>
                   </Card>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "internships" && (
+            <motion.div
+              key="internships"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold tracking-tight">
+                  Premium Internships
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                  Kickstart your career with handpicked internship opportunities from top tech companies.
+                </p>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {[
+                  {
+                    company: "Google",
+                    role: "AI Research Intern",
+                    location: "Remote",
+                    stipend: "$8k/month",
+                    duration: "3 months",
+                    tags: ["Machine Learning", "Python", "TensorFlow"],
+                    logo: "G",
+                    color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                  },
+                  {
+                    company: "OpenAI",
+                    role: "Frontend Engineering Intern",
+                    location: "San Francisco, CA",
+                    stipend: "$9k/month",
+                    duration: "6 months",
+                    tags: ["React", "TypeScript", "Next.js"],
+                    logo: "O",
+                    color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                  },
+                  {
+                    company: "Microsoft",
+                    role: "Data Science Intern",
+                    location: "Seattle, WA",
+                    stipend: "$7.5k/month",
+                    duration: "12 weeks",
+                    tags: ["Data Analysis", "SQL", "PowerBI"],
+                    logo: "M",
+                    color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                  }
+                ].map((internship, i) => (
+                  <motion.div key={i} whileHover={{ y: -5 }} transition={{ type: "spring", stiffness: 300 }}>
+                    <Card className="h-full flex flex-col hover:shadow-xl transition-shadow border-primary/10 overflow-hidden relative group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 group-hover:bg-primary/10 transition-colors" />
+                      <CardHeader className="pb-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl ${internship.color}`}>
+                            {internship.logo}
+                          </div>
+                          <Badge variant="secondary" className="px-3 py-1 font-medium">{internship.duration}</Badge>
+                        </div>
+                        <CardTitle className="text-xl line-clamp-1">{internship.role}</CardTitle>
+                        <CardDescription className="text-base font-medium text-foreground">{internship.company}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-4">
+                        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" /> {internship.location}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="w-4 h-4" /> {internship.stipend}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {internship.tags.map(tag => (
+                            <Badge key={tag} variant="outline" className="bg-background/50">{tag}</Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                      <div className="p-6 pt-0 mt-auto">
+                        <Button className="w-full group-hover:scale-[1.02] transition-transform">
+                          Apply Now <ExternalLink className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "hackathons" && (
+            <motion.div
+              key="hackathons"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="mb-8 flex justify-between items-end">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight">
+                    Upcoming Hackathons
+                  </h2>
+                  <p className="text-muted-foreground mt-2">
+                    Build, collaborate, and win prizes in global AI and Web3 hackathons.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                {[
+                  {
+                    title: "Global AI Innovators Challenge",
+                    org: "TechCrunch",
+                    date: "Oct 15 - Oct 17, 2026",
+                    prize: "$50,000",
+                    participants: 1240,
+                    status: "Registration Open",
+                    theme: "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
+                  },
+                  {
+                    title: "Web3 Builders Weekend",
+                    org: "Ethereum Foundation",
+                    date: "Nov 5 - Nov 7, 2026",
+                    prize: "$25,000",
+                    participants: 850,
+                    status: "Closing Soon",
+                    theme: "bg-gradient-to-br from-blue-500 to-cyan-500 text-white"
+                  },
+                  {
+                    title: "Open Source Contribution Drive",
+                    org: "GitHub",
+                    date: "Dec 1 - Dec 31, 2026",
+                    prize: "Exclusive Swags",
+                    participants: 5000,
+                    status: "Upcoming",
+                    theme: "bg-gradient-to-br from-slate-700 to-slate-900 text-white"
+                  }
+                ].map((hackathon, i) => (
+                  <motion.div key={i} whileHover={{ y: -5 }} transition={{ type: "spring", stiffness: 300 }}>
+                    <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full">
+                      <div className={`p-6 ${hackathon.theme} relative overflow-hidden`}>
+                        <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
+                          <Code className="w-32 h-32" />
+                        </div>
+                        <div className="relative z-10 flex justify-between items-start mb-6">
+                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md">
+                              {hackathon.status}
+                            </Badge>
+                            <div className="flex items-center gap-1 bg-black/20 px-3 py-1 rounded-full text-sm backdrop-blur-md font-medium">
+                              <User className="w-3 h-3" /> {hackathon.participants} register
+                            </div>
+                        </div>
+                        <h3 className="text-2xl font-bold mb-1 relative z-10">{hackathon.title}</h3>
+                        <p className="text-white/80 font-medium relative z-10">by {hackathon.org}</p>
+                      </div>
+                      <CardContent className="p-6 bg-card flex-1">
+                        <div className="flex justify-between items-center mb-6">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="w-5 h-5 text-primary" />
+                            <span className="font-medium text-foreground">{hackathon.date}</span>
+                          </div>
+                        </div>
+                        <div className="bg-primary/5 rounded-xl p-4 flex justify-between items-center border border-primary/10">
+                          <div>
+                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Prize Pool</p>
+                            <p className="text-xl font-bold text-foreground">{hackathon.prize}</p>
+                          </div>
+                          <Button>Register Now</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 ))}
               </div>
             </motion.div>
