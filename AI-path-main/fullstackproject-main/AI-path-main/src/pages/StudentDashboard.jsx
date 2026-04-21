@@ -23,17 +23,42 @@ import {
   MapPin,
   Calendar,
   DollarSign,
-  ExternalLink
+  ExternalLink,
+  Target,
+  TrendingUp,
+  Upload,
+  Zap,
+  Trophy,
+  Flame,
+  Star,
+  FileText,
+  BarChart2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+} from "recharts";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [progressValue, setProgressValue] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [analysisResult, setAnalysisResult] = useState(null);
 
   const currentPath = {
     title: "Fullstack Web Development",
@@ -42,17 +67,93 @@ export default function StudentDashboard() {
     modulesCompleted: 5,
   };
 
+  const [userStats, setUserStats] = useState({
+    level: 12,
+    rank: "Pro",
+    xp: 8450,
+    nextLevelXp: 10000,
+    streak: 14,
+    hasCheckedIn: false,
+  });
+
+  const handleCheckIn = () => {
+    if (userStats.hasCheckedIn) return;
+    
+    let newXp = userStats.xp + 500;
+    let newLevel = userStats.level;
+    let nextXp = userStats.nextLevelXp;
+    
+    if (newXp >= nextXp) {
+      newLevel += 1;
+      newXp = newXp - nextXp;
+      nextXp = Math.floor(nextXp * 1.2);
+    }
+    
+    setUserStats(prev => ({
+      ...prev,
+      level: newLevel,
+      xp: newXp,
+      nextLevelXp: nextXp,
+      streak: prev.streak + 1,
+      hasCheckedIn: true,
+      rank: newLevel >= 15 ? "Master" : prev.rank
+    }));
+  };
+
+  const marketDemandData = [
+    { month: "Jan", demand: 40 },
+    { month: "Feb", demand: 55 },
+    { month: "Mar", demand: 70 },
+    { month: "Apr", demand: 65 },
+    { month: "May", demand: 85 },
+    { month: "Jun", demand: 110 },
+  ];
+
+  const salaryData = [
+    { role: "Entry", salary: 75 },
+    { role: "Mid", salary: 110 },
+    { role: "Senior", salary: 145 },
+    { role: "Lead", salary: 180 },
+  ];
+
   // Animate progress bar on mount
   useEffect(() => {
     const timer = setTimeout(() => setProgressValue(currentPath.progress), 500);
     return () => clearTimeout(timer);
   }, [currentPath.progress]);
 
+  const handleFileUpload = () => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    setAnalysisResult(null);
+    
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setUploadProgress(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          setIsUploading(false);
+          setAnalysisResult({
+            score: 62,
+            role: "Data Analyst",
+            weakAreas: ["Advanced SQL", "Data Visualization tools", "Statistical Modeling"],
+            missingSkills: ["Tableau", "Apache Spark", "A/B Testing"],
+            strengths: ["Python", "Pandas", "Basic SQL"],
+          });
+        }, 500);
+      }
+    }, 200);
+  };
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: User },
+    { id: "skills", label: "Skill Analyzer", icon: Target },
     { id: "courses", label: "My Courses", icon: Book },
     { id: "internships", label: "Internships", icon: Briefcase },
     { id: "hackathons", label: "Hackathons", icon: Code },
+    { id: "market", label: "Market Insights", icon: TrendingUp },
     { id: "certificates", label: "Certificates", icon: Award },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -126,13 +227,46 @@ export default function StudentDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <h1 className="text-3xl font-bold tracking-tight">
-                  Welcome back, Alex! 👋
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  You're currently on track with your learning goals. Let's keep
-                  the momentum going!
-                </p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold tracking-tight">
+                      Welcome back, Alex! 👋
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                      You're currently on track with your learning goals. Let's keep
+                      the momentum going!
+                    </p>
+                  </div>
+                  
+                  {/* Gamification Top Bar */}
+                  <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-3 rounded-2xl border dark:border-zinc-800 shadow-sm">
+                    <motion.div 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleCheckIn}
+                      className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${userStats.hasCheckedIn ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400' : 'bg-orange-50 text-orange-500 hover:bg-orange-100 dark:bg-orange-950/30'} rounded-lg group relative`}
+                    >
+                      <Flame className={`w-5 h-5 fill-current ${userStats.hasCheckedIn ? 'animate-bounce' : 'group-hover:animate-pulse'}`} />
+                      <span className="font-bold text-sm">{userStats.streak} Day Streak</span>
+                      {!userStats.hasCheckedIn && (
+                        <span className="absolute -top-2 -right-2 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                        </span>
+                      )}
+                    </motion.div>
+                    
+                    <div className="flex flex-col px-3 border-l dark:border-zinc-800">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-primary flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-current text-yellow-500" /> Lvl {userStats.level} {userStats.rank}
+                        </span>
+                        <span className="text-[10px] font-medium text-muted-foreground ml-4">{userStats.xp} / {userStats.nextLevelXp} XP</span>
+                      </div>
+                      <Progress value={(userStats.xp / userStats.nextLevelXp) * 100} className="h-2 w-32 bg-primary/10 transition-all duration-500 ease-out" />
+                    </div>
+                  </div>
+                </div>
               </motion.div>
 
               <motion.div
@@ -312,6 +446,310 @@ export default function StudentDashboard() {
                   ))}
                 </div>
               </motion.div>
+
+              {/* Gamification Badges Section */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+              >
+                <div className="flex items-center justify-between border-b pb-4 mb-4 dark:border-zinc-800 mt-8">
+                  <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-500" /> Recent Badges
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { title: "Project Master", desc: "Completed 5 projects", icon: "🚀", color: "bg-blue-100 dark:bg-blue-900/30 text-blue-600" },
+                    { title: "Fast Learner", desc: "Finished path in 1 week", icon: "⚡", color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600" },
+                    { title: "Code Ninja", desc: "Perfect score on quiz", icon: "🥷", color: "bg-purple-100 dark:bg-purple-900/30 text-purple-600" },
+                    { title: "Consistency", desc: "14-day learning streak", icon: "🔥", color: "bg-orange-100 dark:bg-orange-900/30 text-orange-600" },
+                  ].map((badge, i) => (
+                    <motion.div key={i} whileHover={{ y: -5, scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
+                      <Card className="text-center p-4 border-primary/10 hover:shadow-md transition-all cursor-pointer h-full flex flex-col items-center justify-center bg-white dark:bg-zinc-900">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-3 shadow-sm ${badge.color}`}>
+                          {badge.icon}
+                        </div>
+                        <h4 className="font-bold text-sm">{badge.title}</h4>
+                        <p className="text-[10px] text-muted-foreground mt-1">{badge.desc}</p>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {activeTab === "skills" && (
+            <motion.div
+              key="skills"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                  <Target className="w-8 h-8 text-primary" /> Skill Gap Analyzer
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                  Upload your resume or take a quick assessment to see how ready you are for your dream role.
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <Card className="md:col-span-1 border-primary/20 shadow-lg shadow-primary/5">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Upload Resume</CardTitle>
+                    <CardDescription>Let our AI scan your profile.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center space-y-4 pt-4">
+                    <div 
+                      className={`w-full p-8 border-2 border-dashed rounded-xl transition-all ${isUploading ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50 cursor-pointer'}`}
+                      onClick={!isUploading && !analysisResult ? handleFileUpload : undefined}
+                    >
+                      {isUploading ? (
+                        <div className="space-y-4">
+                          <Zap className="w-12 h-12 mx-auto text-primary animate-pulse" />
+                          <p className="text-sm font-medium">AI is analyzing...</p>
+                          <Progress value={uploadProgress} className="h-2 w-full" />
+                        </div>
+                      ) : analysisResult ? (
+                        <div className="space-y-4">
+                          <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
+                          <p className="text-sm font-medium text-green-600">Analysis Complete!</p>
+                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAnalysisResult(null); }}>Scan New Resume</Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
+                          <div className="text-sm">
+                            <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                          </div>
+                          <p className="text-xs text-muted-foreground">PDF, DOCX up to 5MB</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center w-full my-2">
+                      <div className="h-px flex-1 bg-border"></div>
+                      <span className="px-3 text-xs text-muted-foreground uppercase font-medium">OR</span>
+                      <div className="h-px flex-1 bg-border"></div>
+                    </div>
+                    
+                    <Button variant="secondary" className="w-full" disabled={isUploading}>
+                      <FileText className="w-4 h-4 mr-2" /> Take Skill Quiz
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2 border-primary/10 overflow-hidden relative">
+                  {!analysisResult && (
+                    <div className="absolute inset-0 z-10 backdrop-blur-sm bg-background/50 flex flex-col items-center justify-center text-center p-6">
+                      <Target className="w-16 h-16 text-muted-foreground/30 mb-4" />
+                      <h3 className="text-xl font-bold mb-2">Awaiting Data</h3>
+                      <p className="text-muted-foreground max-w-sm">Upload your resume to instantly see your career readiness score, missing skills, and a personalized roadmap.</p>
+                    </div>
+                  )}
+                  <CardHeader className="bg-primary/5 border-b pb-6">
+                    <CardTitle className="text-2xl">Readiness Report</CardTitle>
+                    <CardDescription>Target Role: <strong className="text-foreground">{analysisResult?.role || "Data Analyst"}</strong></CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="flex flex-col items-center justify-center space-y-4">
+                        <div className="relative w-40 h-40 flex items-center justify-center">
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/30" />
+                            <circle 
+                              cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="10" 
+                              className="text-primary"
+                              strokeDasharray={`${(analysisResult?.score || 0) * 2.83} 283`}
+                              style={{ transition: "stroke-dasharray 1.5s ease-out" }}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                            <span className="text-4xl font-bold">{analysisResult?.score || 0}%</span>
+                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Ready</span>
+                          </div>
+                        </div>
+                        <p className="text-center text-sm font-medium">You are <strong className="text-primary">{analysisResult?.score || 0}% ready</strong> for this role. Let's close the gap.</p>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-red-500">
+                            <Zap className="w-4 h-4" /> Weak Areas to Improve
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {(analysisResult?.weakAreas || ["Data Prep", "SQL Joins", "Stats"]).map((skill, i) => (
+                              <Badge key={i} variant="outline" className="bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:border-red-900">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-orange-500">
+                            <Target className="w-4 h-4" /> Missing Critical Skills
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {(analysisResult?.missingSkills || ["Tableau", "AWS"]).map((skill, i) => (
+                              <Badge key={i} variant="outline" className="bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold flex items-center gap-2 mb-3 text-green-500">
+                            <CheckCircle2 className="w-4 h-4" /> Your Strengths
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {(analysisResult?.strengths || ["Python", "Pandas"]).map((skill, i) => (
+                              <Badge key={i} variant="outline" className="bg-green-50 text-green-600 border-green-200 dark:bg-green-950/30 dark:border-green-900">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {analysisResult && (
+                      <div className="mt-8 pt-6 border-t flex justify-end">
+                        <Button className="group">
+                          Generate Custom Path <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "market" && (
+            <motion.div
+              key="market"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                  <BarChart2 className="w-8 h-8 text-primary" /> Real Market Insights
+                </h2>
+                <p className="text-muted-foreground mt-2">
+                  Stay ahead of the curve. Track industry trends, job demand, and salary expectations.
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg md:col-span-1">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-blue-100 font-medium mb-1">Top Trending Skill</p>
+                        <h3 className="text-4xl font-bold">Python</h3>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                        <TrendingUp className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 flex items-center gap-2 text-sm font-medium bg-white/10 w-fit px-3 py-1.5 rounded-full">
+                      <Zap className="w-4 h-4 text-yellow-300" /> Demand increased <span className="text-yellow-300 font-bold">35%</span> this year
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg md:col-span-1">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-emerald-100 font-medium mb-1">Fastest Growing Role</p>
+                        <h3 className="text-3xl font-bold mt-1">AI Engineer</h3>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                        <Target className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 flex items-center gap-2 text-sm font-medium bg-white/10 w-fit px-3 py-1.5 rounded-full">
+                      <TrendingUp className="w-4 h-4 text-white" /> +120% YoY growth
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white shadow-lg md:col-span-1">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-purple-100 font-medium mb-1">Average Starting Salary</p>
+                        <h3 className="text-3xl font-bold mt-1">$85k - $120k</h3>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                        <DollarSign className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 flex items-center gap-2 text-sm font-medium bg-white/10 w-fit px-3 py-1.5 rounded-full">
+                      <Briefcase className="w-4 h-4 text-white" /> For entry-level AI roles
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card className="border-primary/10">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart2 className="w-5 h-5 text-primary" /> Job Demand (Past 6 Months)
+                    </CardTitle>
+                    <CardDescription>Number of open positions (in thousands) for AI/Data roles.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] w-full mt-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={marketDemandData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground)/0.2)" />
+                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                          <RechartsTooltip 
+                            contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))' }}
+                          />
+                          <Area type="monotone" dataKey="demand" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorDemand)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/10">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-green-500" /> Salary Trajectory
+                    </CardTitle>
+                    <CardDescription>Average salary progression (in $1,000s) for Tech/AI roles.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] w-full mt-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={salaryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground)/0.2)" />
+                          <XAxis dataKey="role" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                          <RechartsTooltip 
+                            cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))' }}
+                          />
+                          <Bar dataKey="salary" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </motion.div>
           )}
 
