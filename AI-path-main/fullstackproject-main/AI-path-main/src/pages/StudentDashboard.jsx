@@ -32,7 +32,11 @@ import {
   Flame,
   Star,
   FileText,
-  BarChart2
+  BarChart2,
+  X,
+  MessageCircle,
+  Send,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +63,26 @@ export default function StudentDashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState(null);
+  
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [dailyAnswer, setDailyAnswer] = useState("");
+  
+  // Custom Path State
+  const [isGeneratingPath, setIsGeneratingPath] = useState(false);
+  const [generatedPath, setGeneratedPath] = useState(null);
+  
+  // Chatbot State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { role: "assistant", content: "Hi! I'm your career assistant. How can I help you today?" }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   const currentPath = {
     title: "Fullstack Web Development",
@@ -68,36 +92,75 @@ export default function StudentDashboard() {
   };
 
   const [userStats, setUserStats] = useState({
-    level: 12,
-    rank: "Pro",
-    xp: 8450,
-    nextLevelXp: 10000,
-    streak: 14,
+    level: 1,
+    rank: "Beginner",
+    xp: 0,
+    nextLevelXp: 1000,
+    streak: 0,
     hasCheckedIn: false,
   });
 
-  const handleCheckIn = () => {
-    if (userStats.hasCheckedIn) return;
-    
-    let newXp = userStats.xp + 500;
-    let newLevel = userStats.level;
-    let nextXp = userStats.nextLevelXp;
-    
-    if (newXp >= nextXp) {
-      newLevel += 1;
-      newXp = newXp - nextXp;
-      nextXp = Math.floor(nextXp * 1.2);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          navigate("/student-login");
+          return;
+        }
+        const res = await fetch(`${API}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setUserProfile(data.user);
+          setUserStats({
+            level: data.user.level || 1,
+            xp: data.user.xp || 0,
+            nextLevelXp: data.user.nextLevelXp || 1000,
+            streak: data.user.streak || 0,
+            hasCheckedIn: data.user.hasCheckedIn || false,
+            rank: (data.user.level || 1) >= 15 ? "Master" : (data.user.level >= 5 ? "Pro" : "Beginner"),
+          });
+        } else {
+          localStorage.removeItem("token");
+          navigate("/student-login");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [navigate, API]);
+
+  const handleCheckInSubmit = async () => {
+    if (dailyAnswer.toLowerCase().trim() !== "cascading style sheets") {
+      alert("Incorrect answer. Try again!");
+      return;
     }
-    
-    setUserStats(prev => ({
-      ...prev,
-      level: newLevel,
-      xp: newXp,
-      nextLevelXp: nextXp,
-      streak: prev.streak + 1,
-      hasCheckedIn: true,
-      rank: newLevel >= 15 ? "Master" : prev.rank
-    }));
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/check-in`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserStats({
+          level: data.user.level,
+          xp: data.user.xp,
+          nextLevelXp: data.user.nextLevelXp,
+          streak: data.user.streak,
+          hasCheckedIn: data.user.hasCheckedIn,
+          rank: data.user.level >= 15 ? "Master" : (data.user.level >= 5 ? "Pro" : "Beginner"),
+        });
+        setIsCheckInModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const marketDemandData = [
@@ -122,29 +185,108 @@ export default function StudentDashboard() {
     return () => clearTimeout(timer);
   }, [currentPath.progress]);
 
-  const handleFileUpload = () => {
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(20);
     setAnalysisResult(null);
     
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
+    try {
+      const token = localStorage.getItem("token");
+      setUploadProgress(50);
+      
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      const res = await fetch(`${API}/api/analyze-skill`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      
+      setUploadProgress(80);
+      const data = await res.json();
+      
+      if (data.success && data.analysis) {
+        setUploadProgress(100);
         setTimeout(() => {
           setIsUploading(false);
-          setAnalysisResult({
-            score: 62,
-            role: "Data Analyst",
-            weakAreas: ["Advanced SQL", "Data Visualization tools", "Statistical Modeling"],
-            missingSkills: ["Tableau", "Apache Spark", "A/B Testing"],
-            strengths: ["Python", "Pandas", "Basic SQL"],
-          });
+          setAnalysisResult(data.analysis);
         }, 500);
+      } else {
+        throw new Error("Analysis failed");
       }
-    }, 200);
+    } catch (err) {
+      console.error(err);
+      setIsUploading(false);
+      alert("Failed to analyze resume.");
+    }
+  };
+
+  const handleGeneratePath = async () => {
+    if (!analysisResult) return;
+    setIsGeneratingPath(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/generate-path`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          role: analysisResult.role,
+          weakAreas: analysisResult.weakAreas,
+          missingSkills: analysisResult.missingSkills,
+          strengths: analysisResult.strengths
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGeneratedPath(data.path);
+      } else {
+        alert(data.error || "Failed to generate custom path.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to connect to the server. Please try again.");
+    } finally {
+      setIsGeneratingPath(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+    
+    const userMessage = { role: "user", content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput("");
+    setIsChatLoading(true);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/chat`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          messages: [...chatMessages, userMessage]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+      }
+    } catch (err) {
+      console.error(err);
+      setChatMessages(prev => [...prev, { role: "assistant", content: "Sorry, I'm having trouble connecting right now." }]);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const navItems = [
@@ -230,7 +372,7 @@ export default function StudentDashboard() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <h1 className="text-3xl font-bold tracking-tight">
-                      Welcome back, Alex! 👋
+                      Welcome back, {userProfile?.name?.split(' ')[0] || "Student"}! 👋
                     </h1>
                     <p className="text-muted-foreground mt-2">
                       You're currently on track with your learning goals. Let's keep
@@ -243,7 +385,7 @@ export default function StudentDashboard() {
                     <motion.div 
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={handleCheckIn}
+                      onClick={() => !userStats.hasCheckedIn && setIsCheckInModalOpen(true)}
                       className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${userStats.hasCheckedIn ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400' : 'bg-orange-50 text-orange-500 hover:bg-orange-100 dark:bg-orange-950/30'} rounded-lg group relative`}
                     >
                       <Flame className={`w-5 h-5 fill-current ${userStats.hasCheckedIn ? 'animate-bounce' : 'group-hover:animate-pulse'}`} />
@@ -256,7 +398,7 @@ export default function StudentDashboard() {
                       )}
                     </motion.div>
                     
-                    <div className="flex flex-col px-3 border-l dark:border-zinc-800">
+                    <div className="flex flex-col px-3 border-l dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50 rounded-r-xl transition-colors" onClick={() => setIsProfileModalOpen(true)}>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-bold text-primary flex items-center gap-1">
                           <Star className="w-3 h-3 fill-current text-yellow-500" /> Lvl {userStats.level} {userStats.rank}
@@ -505,21 +647,28 @@ export default function StudentDashboard() {
                     <CardDescription>Let our AI scan your profile.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center space-y-4 pt-4">
+                    <input 
+                      type="file" 
+                      id="resume-upload" 
+                      className="hidden" 
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                      onChange={handleFileUpload}
+                    />
                     <div 
                       className={`w-full p-8 border-2 border-dashed rounded-xl transition-all ${isUploading ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/50 cursor-pointer'}`}
-                      onClick={!isUploading && !analysisResult ? handleFileUpload : undefined}
+                      onClick={() => !isUploading && !analysisResult && document.getElementById('resume-upload').click()}
                     >
                       {isUploading ? (
                         <div className="space-y-4">
                           <Zap className="w-12 h-12 mx-auto text-primary animate-pulse" />
-                          <p className="text-sm font-medium">AI is analyzing...</p>
+                          <p className="text-sm font-medium">AI is analyzing your profile...</p>
                           <Progress value={uploadProgress} className="h-2 w-full" />
                         </div>
                       ) : analysisResult ? (
                         <div className="space-y-4">
                           <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
                           <p className="text-sm font-medium text-green-600">Analysis Complete!</p>
-                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAnalysisResult(null); }}>Scan New Resume</Button>
+                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAnalysisResult(null); }}>Scan New Profile</Button>
                         </div>
                       ) : (
                         <div className="space-y-4">
@@ -527,7 +676,7 @@ export default function StudentDashboard() {
                           <div className="text-sm">
                             <span className="font-semibold text-primary">Click to upload</span> or drag and drop
                           </div>
-                          <p className="text-xs text-muted-foreground">PDF, DOCX up to 5MB</p>
+                          <p className="text-xs text-muted-foreground">PDF, JPG, PNG, DOCX up to 5MB</p>
                         </div>
                       )}
                     </div>
@@ -611,10 +760,50 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     {analysisResult && (
-                      <div className="mt-8 pt-6 border-t flex justify-end">
-                        <Button className="group">
-                          Generate Custom Path <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Button>
+                      <div className="mt-8 pt-6 border-t">
+                        <div className="flex justify-end mb-6">
+                          <Button 
+                            className="group" 
+                            onClick={handleGeneratePath}
+                            disabled={isGeneratingPath}
+                          >
+                            {isGeneratingPath ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Analyzing Skills...
+                              </>
+                            ) : (
+                              <>
+                                Generate Custom Path <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {generatedPath && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="space-y-4"
+                          >
+                            <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
+                              <MapPin className="w-5 h-5 text-primary" /> Your AI-Generated Roadmap
+                            </h3>
+                            <div className="grid gap-4">
+                              {generatedPath.map((module, i) => (
+                                <Card key={i} className="border-l-4 border-l-primary bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <h4 className="font-bold text-lg">{module.title}</h4>
+                                      <p className="text-sm text-muted-foreground mt-1">{module.description}</p>
+                                    </div>
+                                    <Badge variant="secondary">{module.duration}</Badge>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -772,35 +961,56 @@ export default function StudentDashboard() {
                 </p>
               </div>
               <div className="grid gap-4">
-                {[1, 2, 3].map((item) => (
+                {[
+                  {
+                    title: "React JS Full Course for Beginners",
+                    progress: 80,
+                    thumbnail: "https://img.youtube.com/vi/bMknfKXIFA8/maxresdefault.jpg",
+                    url: "https://www.youtube.com/watch?v=bMknfKXIFA8"
+                  },
+                  {
+                    title: "Node.js and Express.js - Full Course",
+                    progress: 40,
+                    thumbnail: "https://img.youtube.com/vi/Oe421EPjeBE/maxresdefault.jpg",
+                    url: "https://www.youtube.com/watch?v=Oe421EPjeBE"
+                  },
+                  {
+                    title: "Python for Beginners - Full Course",
+                    progress: 10,
+                    thumbnail: "https://img.youtube.com/vi/eWRfhZUzrAc/maxresdefault.jpg",
+                    url: "https://www.youtube.com/watch?v=eWRfhZUzrAc"
+                  }
+                ].map((course, index) => (
                   <Card
-                    key={item}
-                    className="p-4 flex items-center justify-between hover:shadow-md transition-all cursor-pointer group border-l-4 border-l-primary hover:-translate-y-1"
+                    key={index}
+                    className="p-4 flex flex-col md:flex-row items-center gap-4 hover:shadow-md transition-all cursor-pointer group border-l-4 border-l-primary hover:-translate-y-1"
+                    onClick={() => window.open(course.url, "_blank")}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <BookOpen className="w-6 h-6" />
+                    <div className="w-full md:w-48 h-28 bg-muted rounded-lg overflow-hidden flex-shrink-0 relative">
+                      <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Play className="w-10 h-10 text-white fill-white" />
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                          AI Course Path {item}
-                        </h4>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Progress
-                            value={10 * item * 2}
-                            className="h-1.5 w-24"
-                          />
-                          <p className="text-sm text-muted-foreground whitespace-nowrap">
-                            {10 * item * 2}% completed
-                          </p>
-                        </div>
+                    </div>
+                    <div className="flex-1 w-full">
+                      <h4 className="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-2">
+                        {course.title}
+                      </h4>
+                      <div className="flex items-center space-x-2 mt-3">
+                        <Progress
+                          value={course.progress}
+                          className="h-2 w-full max-w-[200px]"
+                        />
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">
+                          {course.progress}% completed
+                        </p>
                       </div>
                     </div>
                     <Button
                       variant="secondary"
-                      className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors hidden sm:flex"
+                      className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors w-full md:w-auto mt-4 md:mt-0"
                     >
-                      Resume
+                      Watch on YouTube <ExternalLink className="w-4 h-4 ml-2" />
                     </Button>
                   </Card>
                 ))}
@@ -1048,13 +1258,13 @@ export default function StudentDashboard() {
                     <p className="text-sm font-bold text-muted-foreground uppercase pb-1 tracking-wider">
                       Name
                     </p>
-                    <p className="text-lg font-medium">Alex Developer</p>
+                    <p className="text-lg font-medium">{userProfile?.name || "Alex Developer"}</p>
                   </div>
                   <div className="space-y-2 border-b pb-4 dark:border-zinc-800">
                     <p className="text-sm font-bold text-muted-foreground uppercase pb-1 tracking-wider">
                       Email
                     </p>
-                    <p className="text-lg font-medium">alex@example.com</p>
+                    <p className="text-lg font-medium">{userProfile?.email || "alex@example.com"}</p>
                   </div>
                   <div className="space-y-2 pt-2">
                     <p className="text-sm font-bold text-muted-foreground uppercase pb-1 tracking-wider">
@@ -1073,6 +1283,171 @@ export default function StudentDashboard() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Floating Chatbot */}
+      <div className="fixed bottom-6 right-6 z-[100]">
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="mb-4 w-80 sm:w-96 h-[500px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border dark:border-zinc-800 flex flex-col overflow-hidden"
+            >
+              <div className="p-4 bg-primary text-primary-foreground flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm">Career AI Assistant</h4>
+                    <p className="text-[10px] opacity-80 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Online
+                    </p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={() => setIsChatOpen(false)}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
+                      msg.role === "user" 
+                        ? "bg-primary text-primary-foreground rounded-tr-none" 
+                        : "bg-muted dark:bg-zinc-800 rounded-tl-none"
+                    }`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted dark:bg-zinc-800 p-3 rounded-2xl rounded-tl-none">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t dark:border-zinc-800 flex gap-2">
+                <input 
+                  type="text"
+                  placeholder="Ask a question..."
+                  className="flex-1 bg-muted dark:bg-zinc-800 border-none rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                />
+                <Button size="icon" className="rounded-lg h-9 w-9" onClick={handleSendMessage} disabled={isChatLoading}>
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <Button 
+          size="icon" 
+          className="h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-transform"
+          onClick={() => setIsChatOpen(!isChatOpen)}
+        >
+          {isChatOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        </Button>
+      </div>
+
+      {/* Daily Check-in Modal */}
+      {isCheckInModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-xl max-w-md w-full m-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold flex items-center gap-2"><Flame className="text-orange-500 w-6 h-6" /> Daily Check-In</h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsCheckInModalOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <p className="text-muted-foreground mb-6">Answer the daily coding question to maintain your streak and earn 500 XP!</p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-bold mb-2 block">What does CSS stand for?</label>
+                <input 
+                  type="text" 
+                  value={dailyAnswer}
+                  onChange={(e) => setDailyAnswer(e.target.value)}
+                  placeholder="Type your answer here..." 
+                  className="w-full p-3 rounded-lg border dark:border-zinc-800 bg-transparent focus:ring-2 focus:ring-primary outline-none transition-all"
+                />
+              </div>
+              <Button className="w-full" onClick={handleCheckInSubmit}>Submit Answer</Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Detailed Profile Modal */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-xl max-w-lg w-full m-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold flex items-center gap-2"><User className="text-primary w-6 h-6" /> Detailed Profile</h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsProfileModalOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-4 mb-8 p-4 bg-primary/5 rounded-xl border border-primary/10">
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl">
+                {userProfile?.name?.charAt(0) || "S"}
+              </div>
+              <div>
+                <h4 className="text-xl font-bold">{userProfile?.name || "Student"}</h4>
+                <p className="text-muted-foreground">{userProfile?.email || "student@example.com"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h5 className="font-bold text-sm uppercase text-muted-foreground mb-3 tracking-wider">Gamification Stats</h5>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border dark:border-zinc-800">
+                    <p className="text-muted-foreground text-sm">Current Level</p>
+                    <p className="text-2xl font-bold flex items-center gap-2"><Star className="w-5 h-5 text-yellow-500 fill-current" /> {userStats.level}</p>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border dark:border-zinc-800">
+                    <p className="text-muted-foreground text-sm">Rank</p>
+                    <p className="text-xl font-bold text-primary">{userStats.rank}</p>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border dark:border-zinc-800">
+                    <p className="text-muted-foreground text-sm">Total XP</p>
+                    <p className="text-2xl font-bold text-green-600">{userStats.xp}</p>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border dark:border-zinc-800">
+                    <p className="text-muted-foreground text-sm">Current Streak</p>
+                    <p className="text-2xl font-bold flex items-center gap-2"><Flame className="w-5 h-5 text-orange-500 fill-current" /> {userStats.streak}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h5 className="font-bold text-sm uppercase text-muted-foreground mb-3 tracking-wider">Career Profile</h5>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-zinc-800">
+                    <span className="text-muted-foreground">Target Role</span>
+                    <span className="font-medium">{userProfile?.targetRole || "Fullstack Developer"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b dark:border-zinc-800">
+                    <span className="text-muted-foreground">Education</span>
+                    <span className="font-medium">{userProfile?.education || "B.Tech Computer Science"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
